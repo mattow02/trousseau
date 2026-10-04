@@ -126,6 +126,6 @@ commande `npx` échoue avec « Unknown command ».
 | 1 | Cœur pur testé (53 tests) | fait |
 | 2 | Interface direction D | codée, bundle iOS vérifié ; **pas encore vue sur un vrai iPhone** |
 | 3 | Cookies et Google sur les vrais sites de Matteo | à faire avec lui |
-| 4 | Ipa compilée par GitHub Actions | voir ci-dessous |
-| 5 | Installation SideStore (`idevice_pair` sous Linux, compte Apple gratuit) | à faire avec Matteo, iPhone branché |
+| 4 | Ipa compilée par GitHub Actions | fait le 4 octobre 2026 : Xcode 26.6, 7,5 Mo, `main.jsbundle` présent ; release `v0.1.0` |
+| 5 | Installation SideStore avec **iloader** (AppImage Linux, github.com/nab138/iloader), compte Apple gratuit | à faire avec Matteo, iPhone branché |
 | 6 | Note dans le vault, vérification à J+8 de la signature renouvelée | à faire |
