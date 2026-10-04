@@ -1,0 +1,79 @@
+# Compile une .ipa NON SIGNÉE sur une machine macOS de GitHub.
+#
+# Pourquoi : pas de Mac, et pas de compte Apple Developer payant. SideStore,
+# sur l'iPhone, signe cette .ipa avec un compte Apple gratuit et renouvelle
+# la signature tous les 7 jours tout seul.
+#
+# Piège connu : `xcodebuild archive` avec CODE_SIGNING_ALLOWED=NO ne produit
+# plus de .app depuis Xcode 16. On utilise donc `build`, puis on emballe le
+# .app à la main (une .ipa n'est qu'un zip contenant Payload/<App>.app).
+
+name: ipa
+
+on:
+  workflow_dispatch:
+  push:
+    tags: ['v*']
+
+permissions:
+  contents: write
+
+jobs:
+  ipa:
+    runs-on: macos-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - run: npm run verifier
+
+      - name: Version de Xcode
+        run: xcodebuild -version
+
+      - name: Générer le projet iOS
+        run: npx expo prebuild --platform ios --clean
+
+      - name: Compiler sans signature
+        working-directory: ios
+        run: |
+          espace=$(ls -d *.xcworkspace | head -1)
+          schema="${espace%.xcworkspace}"
+          echo "Espace : $espace, schéma : $schema"
+          set -o pipefail
+          xcodebuild build \
+            -workspace "$espace" \
+            -scheme "$schema" \
+            -configuration Release \
+            -sdk iphoneos \
+            -destination 'generic/platform=iOS' \
+            -derivedDataPath build \
+            CODE_SIGNING_ALLOWED=NO \
+            CODE_SIGNING_REQUIRED=NO \
+            CODE_SIGN_IDENTITY="" \
+            | tail -n 200
+
+      - name: Emballer la .ipa
+        run: |
+          app=$(ls -d ios/build/Build/Products/Release-iphoneos/*.app | head -1)
+          echo "Application : $app"
+          test -f "$app/main.jsbundle" || { echo "Bundle JS absent du .app"; exit 1; }
+          mkdir -p sortie/Payload
+          cp -R "$app" sortie/Payload/
+          (cd sortie && zip -qr ../Trousseau.ipa Payload)
+          ls -lh Trousseau.ipa
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: Trousseau-ipa
+          path: Trousseau.ipa
+          retention-days: 30
+
+      - name: Publier la release
+        if: startsWith(github.ref, 'refs/tags/v')
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release create "$GITHUB_REF_NAME" Trousseau.ipa --title "Trousseau $GITHUB_REF_NAME" --notes "Ipa non signée, à installer avec SideStore."
